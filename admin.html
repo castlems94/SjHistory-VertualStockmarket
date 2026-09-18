@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>SJ 역사 증권 - 관리자</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #fcd535;
+    --canvas-dark: #0b0e11;
+    --surface-card: #1e2329;
+    --surface-elevated: #2b3139;
+    --hairline: #2b3139;
+    --text-body: #eaecef;
+    --text-heading: #ffffff;
+    --text-muted: #707a8a;
+    --text-on-primary: #181a20;
+    --trading-up: #0ecb81;
+    --trading-down: #f6465d;
+    --info-ring: rgba(59, 130, 246, 0.5);
+  }
+  body { background-color: var(--canvas-dark); color: var(--text-body); font-family:'Inter','Noto Sans KR',sans-serif; margin:0; padding:32px 24px; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { color: var(--text-heading); font-weight: 600; margin-top: 0; }
+  h1 { font-size: 28px; margin-bottom: 32px; letter-spacing: -0.5px; }
+  h2 { font-size: 20px; border-bottom: 1px solid var(--hairline); padding-bottom: 12px; margin-bottom: 20px; }
+  .card { background-color: var(--surface-card); border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--hairline); opacity:0; animation: cardEnter 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+  @keyframes cardEnter { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform: translateY(0); } }
+  input { background-color: var(--canvas-dark); color: var(--text-heading); border: 1px solid var(--hairline); padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family:'Inter','Noto Sans KR',sans-serif; outline: none; transition: box-shadow 0.2s, border-color 0.2s; }
+  input:focus { box-shadow: 0 0 0 2px var(--info-ring); border-color: transparent; }
+  input[type="checkbox"] { cursor: pointer; }
+  button { cursor: pointer; font-family:'Inter','Noto Sans KR',sans-serif; border:none; font-weight:600; font-size:13px; transition: transform 0.15s ease, background-color 0.2s, opacity 0.2s; border-radius:6px; position:relative; overflow:hidden; }
+  button:active { transform: scale(0.97); }
+  .btn-primary { background-color: var(--primary); color: var(--text-on-primary); padding: 10px 16px; }
+  .btn-primary:hover { background-color: #f0b90b; }
+  .btn-secondary { background-color: var(--surface-elevated); color: var(--text-heading); padding: 8px 16px; }
+  .btn-secondary:hover { background-color: #3b424d; }
+  .btn-up { background-color: var(--trading-up); color: #fff; padding: 10px 20px; border-radius: 4px; }
+  .btn-down { background-color: var(--trading-down); color: #fff; padding: 10px 20px; border-radius: 4px; }
+  .btn-delist { background-color: var(--trading-down); color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; }
+  button.is-loading { pointer-events: none; opacity: 0.75; }
+  .btn-spinner { display:inline-block; width:11px; height:11px; margin-left:7px; border:2px solid rgba(255,255,255,0.35); border-top-color:#fff; border-radius:50%; vertical-align:-1px; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ripple { position:absolute; border-radius:50%; background-color: rgba(255,255,255,0.35); transform: scale(0); animation: rippleAnim 0.6s ease-out; pointer-events:none; }
+  @keyframes rippleAnim { to { transform: scale(2.8); opacity:0; } }
+  table { width:100%; border-collapse: collapse; font-size:13px; }
+  th { color: var(--text-muted); border-bottom: 1px solid var(--hairline); padding: 12px 8px; text-align: right; font-weight: 500; font-size: 12px; }
+  td { border-bottom: 1px solid var(--hairline); padding: 12px 8px; text-align: right; color: var(--text-heading); transition: background-color 0.2s ease; }
+  th:first-child, td:first-child { text-align: left; }
+  .num { font-family: 'JetBrains Mono', monospace; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background-color 0.2s ease; }
+  tbody tr:hover td { background-color: var(--surface-elevated); }
+  @keyframes flashUp { 0% { background-color: rgba(14,203,129,0.32); } 100% { background-color: transparent; } }
+  @keyframes flashDown { 0% { background-color: rgba(246,70,93,0.32); } 100% { background-color: transparent; } }
+  .flash-up { animation: flashUp 1.1s ease-out; }
+  .flash-down { animation: flashDown 1.1s ease-out; }
+  .danger-zone { border: 1px solid var(--trading-down); background-color: rgba(246,70,93,0.05); padding: 16px; border-radius: 8px; margin-top: 24px; text-align: center; }
+  .rank-table tr:nth-child(1) td { color: var(--primary); }
+  .rank-table tr:nth-child(2) td { color: #eaecef; }
+  .rank-table tr:nth-child(3) td { color: #cd7f32; }
+  #gate { max-width: 420px; margin: 80px auto; text-align:center; }
+  #panel { display:none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+    .card { opacity:1; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- 비밀번호 게이트: 완전한 보안이 아니라 학급 규모의 간단한 접근 제한용입니다. -->
+  <div id="gate" class="card">
+    <h2 style="border-bottom:none;">👑 관리자 인증</h2>
+    <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">관리자 비밀번호를 입력하세요.</p>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <input type="password" id="adminPwd" placeholder="비밀번호">
+      <button class="btn-primary" onclick="checkGate(this)">입장</button>
+    </div>
+    <p id="gateMsg" style="color:var(--trading-down); font-size:13px; margin-top:12px;"></p>
+  </div>
+
+  <div id="panel">
+    <h1>👑 관리자 제어 패널 (SJ 역사 증권)</h1>
+
+    <div class="card" style="text-align:center; background-color: var(--surface-elevated); animation-delay:0s;">
+      <h2 style="border-bottom:none; margin-bottom:8px;">⏳ 시장 상태 제어</h2>
+      <p id="statusText" style="color:var(--primary); font-family:'Noto Sans KR',sans-serif; font-weight:600; font-size:16px; margin-bottom:24px;">상태 확인 중...</p>
+      <button class="btn-up" onclick="setStatus('OPEN', this)" style="margin-right:12px;">🟢 장 개장</button>
+      <button class="btn-down" onclick="setStatus('CLOSED', this)">🔴 장 종료</button>
+    </div>
+
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div class="card" style="flex:1.5; min-width:380px; animation-delay:0.06s;">
+        <h2>🏢 상장 회사 주가 설정</h2>
+        <div style="background-color: var(--canvas-dark); padding:16px; border-radius:8px; margin-bottom:24px; border:1px solid var(--hairline);">
+          <h3 style="font-size:14px; margin-bottom:12px;">✨ 신규 상장 / 폐지 종목 복구</h3>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="newCompName" placeholder="회사명" style="flex:1;">
+            <input type="number" id="newCompPrice" placeholder="초기 주가" style="width:100px;">
+            <button class="btn-primary" onclick="addNewCompany(this)">추가</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>회사명</th><th>현재 주가</th><th>새 주가 입력</th><th>관리</th></tr></thead>
+          <tbody id="marketBody"></tbody>
+        </table>
+        <div style="text-align:right; margin-top:24px;">
+          <button class="btn-primary" onclick="applyBulkPrices(this)" style="width:100%;">🔄 입력 주가 일괄 적용</button>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1; min-width:320px; animation-delay:0.12s;">
+        <h2>💰 투자금 일괄 지급</h2>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <input type="number" id="bulkAmount" placeholder="지급 금액(원)" style="flex:1;">
+          <button class="btn-secondary" onclick="sendBulkMoney(this)">선택 지급</button>
+        </div>
+        <table>
+          <thead><tr><th><input type="checkbox" id="selectAll" onclick="toggleAll()"></th><th>학번</th><th>이름</th><th>예수금</th></tr></thead>
+          <tbody id="investorBody"></tbody>
+        </table>
+        <div class="danger-zone">
+          <h3 style="color:var(--trading-down); font-size:14px; margin-bottom:8px;">⚠️ 위험 구역</h3>
+          <button class="btn-down" onclick="resetStudents(this)" style="width:100%; font-size:13px;">🗑️ 학생 데이터 초기화</button>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1; min-width:280px; animation-delay:0.18s;">
+        <h2>🏆 실시간 명예의 전당 (TOP 10)</h2>
+        <p style="color:var(--text-muted); font-size:12px; margin-top:-12px; margin-bottom:16px;">Firebase 실시간 연결 — 별도 새로고침이 필요 없습니다.</p>
+        <table class="rank-table">
+          <thead><tr><th style="text-align:left;">순위</th><th style="text-align:left;">이름</th><th>총 자산</th></tr></thead>
+          <tbody id="adminLeaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  // ⚠️ TODO: 실제 배포 전 반드시 변경하세요. 이 방식은 완전한 보안이 아니라
+  // 학급 규모에서 학생들이 관리자 페이지에 우연히 들어오는 것을 막는 정도입니다.
+  const ADMIN_PASSWORD = "2812";
+
+  let currentCompanies = {};
+  let currentStudents = {};
+  let prevMarketPrices = {};
+  let prevInvestorFunds = {};
+  let prevLeaderboardAssets = {};
+
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    const size = Math.max(rect.width, rect.height);
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 650);
+  });
+
+  function setButtonLoading(btn, isLoading, loadingLabel) {
+    if (!btn) return;
+    if (isLoading) {
+      btn.dataset.originalText = btn.dataset.originalText || btn.innerHTML;
+      btn.classList.add('is-loading');
+      btn.innerHTML = (loadingLabel || btn.dataset.originalText) + '<span class="btn-spinner"></span>';
+    } else {
+      btn.classList.remove('is-loading');
+      if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+    }
+  }
+
+  function flashClass(newVal, oldVal) {
+    if (newVal > oldVal) return 'flash-up';
+    if (newVal < oldVal) return 'flash-down';
+    return '';
+  }
+
+  function checkGate(btn) {
+    const pwd = document.getElementById('adminPwd').value;
+    if (pwd !== ADMIN_PASSWORD) {
+      document.getElementById('gateMsg').innerText = "비밀번호가 일치하지 않습니다.";
+      return;
+    }
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    subscribeRealtime();
+  }
+
+  function subscribeRealtime() {
+    db.ref('marketStatus').on('value', snap => {
+      const status = snap.val() || 'CLOSED';
+      document.getElementById('statusText').innerText = status === 'OPEN' ? "현재 상태: 개장 (거래 가능)" : "현재 상태: 마감 (거래 불가)";
+    });
+    db.ref('companies').on('value', snap => {
+      currentCompanies = snap.val() || {};
+      renderMarket();
+      renderLeaderboard();
+    });
+    db.ref('students').on('value', snap => {
+      currentStudents = snap.val() || {};
+      renderInvestors();
+      renderLeaderboard();
+    });
+  }
+
+  function renderMarket() {
+    const mBody = document.getElementById('marketBody');
+    mBody.innerHTML = '';
+    const nextPrices = {};
+    Object.keys(currentCompanies).forEach(name => {
+      const c = currentCompanies[name];
+      const prevPrice = prevMarketPrices[name];
+      const priceFlash = (prevPrice !== undefined) ? flashClass(c.price, prevPrice) : '';
+      mBody.innerHTML += `<tr>
+        <td style="font-weight:500;">${name}</td>
+        <td class="num ${priceFlash}">${Number(c.price).toLocaleString()}</td>
+        <td><input type="number" class="bulk-price-input num" data-company="${name}" placeholder="주가 입력" style="width:80px; text-align:right;"></td>
+        <td><button class="btn-delist" onclick="executeDelist('${name}', this)">폐지</button></td>
+      </tr>`;
+      nextPrices[name] = c.price;
+    });
+    prevMarketPrices = nextPrices;
+  }
+
+  function renderInvestors() {
+    const iBody = document.getElementById('investorBody');
+    iBody.innerHTML = '';
+    const nextFunds = {};
+    Object.keys(currentStudents).forEach(id => {
+      const s = currentStudents[id];
+      const prevFunds = prevInvestorFunds[id];
+      const fundsFlash = (prevFunds !== undefined) ? flashClass(s.funds, prevFunds) : '';
+      iBody.innerHTML += `<tr>
+        <td><input type="checkbox" class="stu-check" value="${id}"></td>
+        <td class="num">${id}</td><td>${s.name}</td><td class="num ${fundsFlash}">${Number(s.funds).toLocaleString()}</td>
+      </tr>`;
+      nextFunds[id] = s.funds;
+    });
+    prevInvestorFunds = nextFunds;
+  }
+
+  function renderLeaderboard() {
+    const list = Object.keys(currentStudents).map(id => {
+      const s = currentStudents[id];
+      let total = s.funds || 0;
+      const portfolio = s.portfolio || {};
+      Object.keys(portfolio).forEach(company => {
+        const price = (currentCompanies[company] || {}).price || 0;
+        total += portfolio[company].qty * price;
+      });
+      return { name: s.name, asset: total };
+    }).sort((a, b) => b.asset - a.asset).slice(0, 10);
+
+    const lBody = document.getElementById('adminLeaderboardBody');
+    lBody.innerHTML = '';
+    const nextAssets = {};
+    list.forEach((user, index) => {
+      const rankStr = `${index + 1}`;
+      const prevAsset = prevLeaderboardAssets[user.name];
+      const assetFlash = (prevAsset !== undefined) ? flashClass(user.asset, prevAsset) : '';
+      lBody.innerHTML += `<tr>
+        <td style="text-align:left;" class="num">${rankStr}</td>
+        <td style="text-align:left;">${user.name}</td>
+        <td class="num ${assetFlash}">${Number(user.asset).toLocaleString()}</td>
+      </tr>`;
+      nextAssets[user.name] = user.asset;
+    });
+    prevLeaderboardAssets = nextAssets;
+  }
+
+  async function setStatus(status, btn) {
+    setButtonLoading(btn, true);
+    try { await db.ref('marketStatus').set(status); }
+    finally { setButtonLoading(btn, false); }
+  }
+
+  async function addNewCompany(btn) {
+    const name = document.getElementById('newCompName').value.trim();
+    const price = Number(document.getElementById('newCompPrice').value);
+    if (!name || !price) return alert("회사명과 초기 주가를 입력해주세요.");
+    setButtonLoading(btn, true);
+    try {
+      const snap = await db.ref(`companies/${name}`).get();
+      if (snap.exists()) { alert("이미 존재하는 종목명입니다."); return; }
+      await db.ref(`companies/${name}`).set({ price, prevPrice: price });
+      alert(`'${name}' 종목이 상장되었습니다.`);
+      document.getElementById('newCompName').value = '';
+      document.getElementById('newCompPrice').value = '';
+    } finally { setButtonLoading(btn, false); }
+  }
+
+  async function applyBulkPrices(btn) {
+    const inputs = document.querySelectorAll('.bulk-price-input');
+    const updates = {};
+    let count = 0;
+    inputs.forEach(input => {
+      if (input.value) {
+        const company = input.dataset.company;
+        const oldPrice = (currentCompanies[company] || {}).price;
+        updates[`${company}/prevPrice`] = oldPrice;
+        updates[`${company}/price`] = Number(input.value);
+        count++;
+      }
+    });
+    if (count === 0) return alert("변경할 주가를 하나 이상 입력해주세요.");
+    setButtonLoading(btn, true);
+    try {
+      await db.ref('companies').update(updates);
+      alert(`${count}개 종목의 주가가 적용되었습니다.`);
+      inputs.forEach(input => input.value = '');
+    } finally { setButtonLoading(btn, false); }
+  }
+
+  async function executeDelist(companyName, btn) {
+    if (!confirm(`🚨 경고: '${companyName}' 종목을 폐지하시겠습니까? 학생들의 해당 주식이 모두 삭제됩니다.`)) return;
+    setButtonLoading(btn, true);
+    try {
+      await db.ref(`companies/${companyName}`).remove();
+      const studentsSnap = await db.ref('students').get();
+      const students = studentsSnap.val() || {};
+      const updates = {};
+      Object.keys(students).forEach(id => {
+        if (students[id].portfolio && students[id].portfolio[companyName]) {
+          updates[`${id}/portfolio/${companyName}`] = null;
+        }
+      });
+      if (Object.keys(updates).length) await db.ref('students').update(updates);
+      alert(`'${companyName}' 종목이 폐지되었습니다.`);
+    } finally { setButtonLoading(btn, false); }
+  }
+
+  function toggleAll() {
+    const isChecked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.stu-check').forEach(cb => cb.checked = isChecked);
+  }
+
+  async function sendBulkMoney(btn) {
+    const amount = Number(document.getElementById('bulkAmount').value);
+    if (!amount) return alert("금액을 입력하세요.");
+    const selected = Array.from(document.querySelectorAll('.stu-check:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("학생을 한 명 이상 선택하세요.");
+    setButtonLoading(btn, true);
+    try {
+      await Promise.all(selected.map(id =>
+        db.ref(`students/${id}/funds`).transaction(funds => (funds || 0) + amount)
+      ));
+      alert(`${selected.length}명에게 ${amount.toLocaleString()}원이 지급되었습니다.`);
+    } finally { setButtonLoading(btn, false); }
+  }
+
+  async function resetStudents(btn) {
+    if (prompt("⚠️ 모든 계좌와 기록이 초기화됩니다. 진행하려면 '초기화' 라고 입력하세요.") !== '초기화') return;
+    setButtonLoading(btn, true);
+    try {
+      await db.ref('students').remove();
+      alert("모든 학생 데이터가 초기화되었습니다.");
+    } finally { setButtonLoading(btn, false); }
+  }
+</script>
+</body>
+</html>

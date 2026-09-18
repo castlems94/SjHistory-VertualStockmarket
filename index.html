@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>SJ 역사 증권</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #fcd535;
+    --primary-active: #f0b90b;
+    --canvas-dark: #0b0e11;
+    --surface-card: #1e2329;
+    --surface-elevated: #2b3139;
+    --hairline: #2b3139;
+    --text-body: #eaecef;
+    --text-heading: #ffffff;
+    --text-muted: #707a8a;
+    --text-on-primary: #181a20;
+    --trading-up: #0ecb81;
+    --trading-down: #f6465d;
+    --info-ring: rgba(59, 130, 246, 0.5);
+  }
+  body {
+    background-color: var(--canvas-dark);
+    color: var(--text-body);
+    font-family: 'Inter', 'Noto Sans KR', sans-serif;
+    margin: 0; padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .top-nav {
+    height: 64px; background-color: var(--canvas-dark); border-bottom: 1px solid var(--hairline);
+    display: flex; justify-content: space-between; align-items: center; padding: 0 24px;
+  }
+  .brand { color: var(--primary); font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+  h2, h3 { color: var(--text-heading); font-weight: 600; margin-top: 0; }
+  h2 { font-size: 24px; letter-spacing: -0.3px; }
+  h3 { font-size: 16px; margin-bottom: 16px; }
+  .card { background-color: var(--surface-card); border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--hairline); }
+  .num { font-family: 'JetBrains Mono', 'Inter', sans-serif; }
+  input, select {
+    background-color: var(--canvas-dark); color: var(--text-heading); border: 1px solid var(--hairline);
+    padding: 10px 16px; border-radius: 8px; font-size: 14px; font-family: 'Inter', 'Noto Sans KR', sans-serif;
+    outline: none; transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  input:focus, select:focus { box-shadow: 0 0 0 2px var(--info-ring); border-color: transparent; }
+  button {
+    cursor: pointer; font-family: 'Inter', 'Noto Sans KR', sans-serif; border: none;
+    transition: transform 0.15s ease, background-color 0.2s, opacity 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.5; pointer-events: none; }
+  .btn-primary { background-color: var(--primary); color: var(--text-on-primary); font-weight: 600; border-radius: 6px; padding: 12px 24px; font-size: 14px; }
+  .btn-primary:hover { background-color: var(--primary-active); }
+  .btn-buy { background-color: var(--trading-up); color: var(--text-heading); font-weight: 600; border-radius: 4px; padding: 8px 20px; font-size: 14px; }
+  .btn-buy:hover { box-shadow: 0 0 0 3px rgba(14, 203, 129, 0.25); }
+  .btn-sell { background-color: var(--trading-down); color: var(--text-heading); font-weight: 600; border-radius: 4px; padding: 8px 20px; font-size: 14px; }
+  .btn-sell:hover { box-shadow: 0 0 0 3px rgba(246, 70, 93, 0.25); }
+  .admin-btn { background: transparent; color: var(--text-muted); font-size: 14px; font-weight: 500; }
+  .admin-btn:hover { color: var(--text-heading); }
+  button.is-loading { pointer-events: none; opacity: 0.75; }
+  .btn-spinner {
+    display: inline-block; width: 12px; height: 12px; margin-left: 8px;
+    border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%;
+    vertical-align: -1px; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ripple {
+    position: absolute; border-radius: 50%; background-color: rgba(255,255,255,0.4);
+    transform: scale(0); animation: rippleAnim 0.6s ease-out; pointer-events: none;
+  }
+  @keyframes rippleAnim { to { transform: scale(2.8); opacity: 0; } }
+  .up { color: var(--trading-up) !important; font-weight: 500; }
+  .down { color: var(--trading-down) !important; font-weight: 500; }
+  .neutral { color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { color: var(--text-muted); border-bottom: 1px solid var(--hairline); padding: 12px 0; text-align: right; font-weight: 500; font-size: 12px; }
+  td { border-bottom: 1px solid var(--hairline); padding: 12px 0; text-align: right; color: var(--text-heading); transition: background-color 0.2s ease; }
+  th:first-child, td:first-child { text-align: left; }
+  td:not(:first-child) { font-family: 'JetBrains Mono', sans-serif; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background-color 0.2s ease; }
+  tbody tr:hover td { background-color: var(--surface-elevated); }
+  @keyframes flashUp { 0% { background-color: rgba(14,203,129,0.32); } 100% { background-color: transparent; } }
+  @keyframes flashDown { 0% { background-color: rgba(246,70,93,0.32); } 100% { background-color: transparent; } }
+  .flash-up { animation: flashUp 1.1s ease-out; }
+  .flash-down { animation: flashDown 1.1s ease-out; }
+  .flex-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .flex-between { justify-content: space-between; }
+  .val-large { font-size: 32px; font-weight: 700; color: var(--text-heading); letter-spacing: -0.5px; display: inline-block; }
+  .val-label { font-size: 14px; color: var(--text-muted); margin-bottom: 4px; display: block; }
+  #mainApp { display: none; }
+  .app-enter { animation: appEnter 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @keyframes appEnter { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  #loginSection { transition: opacity 0.25s ease; }
+  #loginSection.fade-out { opacity: 0; }
+  .live-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--trading-up);
+    margin-right: 6px; box-shadow: 0 0 0 0 rgba(14,203,129,0.6); animation: pulseDot 1.6s infinite;
+  }
+  @keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(14,203,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(14,203,129,0); } 100% { box-shadow: 0 0 0 0 rgba(14,203,129,0); } }
+  .market-closed-banner { background-color: var(--primary); color: var(--text-on-primary); text-align: center; padding: 12px; font-weight: 600; border-radius: 8px; margin-bottom: 24px; display: none; font-size: 14px; }
+  .rank-table tr:nth-child(1) td { color: var(--primary); font-weight: bold; }
+  .rank-table tr:nth-child(2) td { color: #eaecef; font-weight: bold; }
+  .rank-table tr:nth-child(3) td { color: #cd7f32; font-weight: bold; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <h1 class="brand">📈 SJ 역사 증권</h1>
+  <button class="admin-btn" onclick="location.href='admin.html'">⚙️ 선생님용 관리자</button>
+</div>
+
+<div class="container">
+
+  <div id="loginSection" class="card" style="max-width: 420px; margin: 40px auto; text-align: center;">
+    <h2>계좌 접속 및 개설</h2>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">학번과 이름을 입력하여 거래소에 접속하세요.</p>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <input type="number" id="studentId" placeholder="학번 입력 (예: 30101)">
+      <input type="text" id="studentName" placeholder="이름 입력">
+      <button class="btn-primary" onclick="handleLogin(this)" style="width:100%; margin-top:8px;">접속 / 계좌개설</button>
+    </div>
+    <p id="loginMsg" style="color: var(--primary); font-size:14px; margin-top:16px; font-weight:500;"></p>
+  </div>
+
+  <div id="mainApp">
+    <div class="market-closed-banner" id="closedBanner">⚠️ 현재 장이 마감되었습니다. 시황을 확인하세요.</div>
+
+    <div class="card flex-row flex-between" style="padding: 32px 48px;">
+      <div class="flex-row" style="gap:64px;">
+        <div>
+          <span class="val-label">보유 예수금</span>
+          <span class="val-large num" id="myFunds">0</span> <span style="color:var(--text-muted);">원</span>
+        </div>
+        <div>
+          <span class="val-label">총 평가 자산</span>
+          <span class="val-large num" style="color:var(--primary);" id="totalAsset">0</span> <span style="color:var(--text-muted);">원</span>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <span class="live-dot"></span><span style="font-size:13px; color:var(--text-muted);">실시간 연결됨</span>
+      </div>
+    </div>
+
+    <div class="card" id="portfolioCard">
+      <h3>💼 나의 주식 잔고</h3>
+      <table id="portfolioTable">
+        <thead><tr><th>종목명</th><th>보유수량</th><th>매입금액</th><th>평가금액</th><th>평균단가</th><th>현재가</th><th>평가손익</th><th>수익률(%)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="flex-row" style="align-items:flex-start;">
+      <div class="card" style="flex:2; min-width:480px;">
+        <h3>📊 실시간 시장 및 주문</h3>
+        <table id="marketTable">
+          <thead><tr><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률(%)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="tradeForm" style="margin-top:32px; padding-top:24px; border-top:1px solid var(--hairline);">
+          <div class="flex-row" style="justify-content:flex-end;">
+            <select id="companySelect"><option value="">종목 선택</option></select>
+            <input type="number" id="tradeQty" placeholder="수량" style="width:120px;">
+            <button class="btn-buy" onclick="order('buy', this)">매수 (Buy)</button>
+            <button class="btn-sell" onclick="order('sell', this)">매도 (Sell)</button>
+          </div>
+          <p id="tradeMsg" style="color:var(--primary); font-size:14px; text-align:right; margin-top:12px; font-weight:500;"></p>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1; min-width:280px;">
+        <h3>🏆 명예의 전당 (TOP 10)</h3>
+        <table id="leaderboardTable" class="rank-table">
+          <thead><tr><th style="text-align:left;">순위</th><th style="text-align:left;">이름</th><th>총 자산</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  let myId = '';
+  let currentStatus = 'CLOSED';
+  let currentCompanies = {};   // { name: { price, prevPrice } }
+  let currentStudent = null;   // { name, funds, portfolio }
+
+  let prevFunds = null;
+  let prevTotalAsset = null;
+  let prevMarketPrices = {};
+  let prevPortfolioSnap = {};
+
+  /* ---------------- 공통 인터랙션 효과 ---------------- */
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    const size = Math.max(rect.width, rect.height);
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 650);
+  });
+
+  function setButtonLoading(btn, isLoading, loadingLabel) {
+    if (!btn) return;
+    if (isLoading) {
+      btn.dataset.originalText = btn.dataset.originalText || btn.innerHTML;
+      btn.classList.add('is-loading');
+      btn.innerHTML = (loadingLabel || btn.dataset.originalText) + '<span class="btn-spinner"></span>';
+    } else {
+      btn.classList.remove('is-loading');
+      if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+    }
+  }
+
+  function animateValue(el, start, end, duration = 650) {
+    if (start === null || start === end) { el.innerText = formatMoney(end); return; }
+    const startTime = performance.now();
+    function step(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.innerText = formatMoney(start + (end - start) * eased);
+      if (progress < 1) requestAnimationFrame(step); else el.innerText = formatMoney(end);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function formatMoney(num) { return Math.floor(num).toLocaleString(); }
+  function formatColor(val, isRate = false) {
+    if (val > 0) return `<span class="up">▲ ${formatMoney(val)}${isRate?'%':''}</span>`;
+    if (val < 0) return `<span class="down">▼ ${formatMoney(Math.abs(val))}${isRate?'%':''}</span>`;
+    return `<span class="neutral">- 0${isRate?'%':''}</span>`;
+  }
+  function flashClass(newVal, oldVal) {
+    if (newVal > oldVal) return 'flash-up';
+    if (newVal < oldVal) return 'flash-down';
+    return '';
+  }
+
+  /* ---------------- 로그인 / 계좌 개설 ---------------- */
+  async function handleLogin(btn) {
+    const id = document.getElementById('studentId').value.trim();
+    const name = document.getElementById('studentName').value.trim();
+    const msg = document.getElementById('loginMsg');
+    if (!id || !name) { msg.innerText = "학번과 이름을 모두 입력해주세요."; return; }
+
+    msg.innerText = "접속 중입니다...";
+    setButtonLoading(btn, true);
+    try {
+      const snap = await db.ref(`students/${id}`).get();
+      if (!snap.exists()) {
+        await db.ref(`students/${id}`).set({ name, funds: INITIAL_FUNDS, portfolio: {} });
+      } else {
+        const existing = snap.val();
+        if (existing.name !== name) {
+          setButtonLoading(btn, false);
+          msg.innerText = "이미 등록된 학번이지만 이름이 일치하지 않습니다.";
+          return;
+        }
+      }
+      myId = id;
+      setButtonLoading(btn, false);
+      const loginSection = document.getElementById('loginSection');
+      const mainApp = document.getElementById('mainApp');
+      loginSection.classList.add('fade-out');
+      setTimeout(() => {
+        loginSection.style.display = 'none';
+        mainApp.style.display = 'block';
+        mainApp.classList.add('app-enter');
+        subscribeRealtime();
+      }, 250);
+    } catch (e) {
+      setButtonLoading(btn, false);
+      msg.innerText = "오류: " + (e && (e.code || e.message) ? (e.code || e.message) : e);
+    }
+  }
+
+  /* ---------------- 실시간 구독 (google.script.run 폴링을 대체) ---------------- */
+  function subscribeRealtime() {
+    db.ref('marketStatus').on('value', snap => {
+      currentStatus = snap.val() || 'CLOSED';
+      renderAll();
+    });
+    db.ref('companies').on('value', snap => {
+      currentCompanies = snap.val() || {};
+      renderAll();
+    });
+    db.ref(`students/${myId}`).on('value', snap => {
+      currentStudent = snap.val();
+      renderAll();
+    });
+    // 명예의 전당 계산을 위해 전체 학생 목록도 구독
+    db.ref('students').on('value', snap => {
+      window.__allStudents = snap.val() || {};
+      renderLeaderboard();
+    });
+  }
+
+  function renderAll() {
+    if (!currentStudent) return;
+    renderHeader();
+    renderPortfolio();
+    renderMarket();
+    renderLeaderboard();
+
+    const isClosed = currentStatus === 'CLOSED';
+    document.getElementById('closedBanner').style.display = isClosed ? 'block' : 'none';
+    document.getElementById('tradeForm').style.display = isClosed ? 'none' : 'block';
+    document.getElementById('portfolioCard').style.display = isClosed ? 'none' : 'block';
+  }
+
+  function computeTotalAsset(student) {
+    let total = student.funds || 0;
+    const portfolio = student.portfolio || {};
+    Object.keys(portfolio).forEach(company => {
+      const price = (currentCompanies[company] || {}).price || 0;
+      total += portfolio[company].qty * price;
+    });
+    return total;
+  }
+
+  function renderHeader() {
+    const totalAsset = computeTotalAsset(currentStudent);
+    animateValue(document.getElementById('myFunds'), prevFunds, currentStudent.funds);
+    animateValue(document.getElementById('totalAsset'), prevTotalAsset, totalAsset);
+    prevFunds = currentStudent.funds;
+    prevTotalAsset = totalAsset;
+  }
+
+  function renderPortfolio() {
+    const tbody = document.querySelector('#portfolioTable tbody');
+    tbody.innerHTML = '';
+    const portfolio = currentStudent.portfolio || {};
+    const nextSnap = {};
+    Object.keys(portfolio).forEach(company => {
+      const holding = portfolio[company];
+      const currentPrice = (currentCompanies[company] || {}).price || 0;
+      const currentValue = holding.qty * currentPrice;
+      const avgPrice = holding.totalCost / holding.qty;
+      const profitLoss = currentValue - holding.totalCost;
+      const profitRate = holding.totalCost ? (profitLoss / holding.totalCost) * 100 : 0;
+
+      const prev = prevPortfolioSnap[company];
+      const priceFlash = prev ? flashClass(currentPrice, prev.currentPrice) : '';
+      const valueFlash = prev ? flashClass(currentValue, prev.currentValue) : '';
+      const plFlash = prev ? flashClass(profitLoss, prev.profitLoss) : '';
+
+      tbody.innerHTML += `<tr>
+        <td style="font-family:'Inter','Noto Sans KR',sans-serif; color:var(--text-heading); font-weight:500;">${company}</td>
+        <td>${holding.qty}</td>
+        <td>${formatMoney(holding.totalCost)}</td>
+        <td class="${valueFlash}">${formatMoney(currentValue)}</td>
+        <td>${formatMoney(avgPrice)}</td>
+        <td class="${priceFlash}">${formatMoney(currentPrice)}</td>
+        <td class="${plFlash}">${formatColor(profitLoss)}</td>
+        <td>${formatColor(profitRate, true)}</td>
+      </tr>`;
+      nextSnap[company] = { currentPrice, currentValue, profitLoss };
+    });
+    prevPortfolioSnap = nextSnap;
+  }
+
+  function renderMarket() {
+    const tbody = document.querySelector('#marketTable tbody');
+    const select = document.getElementById('companySelect');
+    const prevSelectValue = select.value;
+    tbody.innerHTML = '';
+    select.innerHTML = '<option value="">종목 선택</option>';
+    const nextPrices = {};
+    Object.keys(currentCompanies).forEach(name => {
+      const c = currentCompanies[name];
+      const diff = c.price - (c.prevPrice ?? c.price);
+      const changeRate = c.prevPrice ? (diff / c.prevPrice) * 100 : 0;
+      const prevPrice = prevMarketPrices[name];
+      const priceFlash = (prevPrice !== undefined) ? flashClass(c.price, prevPrice) : '';
+
+      tbody.innerHTML += `<tr>
+        <td style="font-family:'Inter','Noto Sans KR',sans-serif; color:var(--text-heading); font-weight:600;">${name}</td>
+        <td class="${priceFlash}" style="font-weight:700;">${formatMoney(c.price)}</td>
+        <td>${formatColor(diff)}</td>
+        <td>${formatColor(changeRate, true)}</td>
+      </tr>`;
+      select.innerHTML += `<option value="${name}">${name}</option>`;
+      nextPrices[name] = c.price;
+    });
+    prevMarketPrices = nextPrices;
+    if (prevSelectValue) select.value = prevSelectValue;
+  }
+
+  function renderLeaderboard() {
+    const students = window.__allStudents || {};
+    const list = Object.keys(students).map(id => {
+      const s = students[id];
+      let total = s.funds || 0;
+      const portfolio = s.portfolio || {};
+      Object.keys(portfolio).forEach(company => {
+        const price = (currentCompanies[company] || {}).price || 0;
+        total += portfolio[company].qty * price;
+      });
+      return { name: s.name, asset: total };
+    }).sort((a, b) => b.asset - a.asset).slice(0, 10);
+
+    const tbody = document.querySelector('#leaderboardTable tbody');
+    tbody.innerHTML = '';
+    list.forEach((user, index) => {
+      const rankStr = `${index + 1}`;
+      tbody.innerHTML += `<tr>
+        <td style="text-align:left; font-family:'JetBrains Mono',monospace;">${rankStr}</td>
+        <td style="text-align:left; font-family:'Inter','Noto Sans KR',sans-serif;">${user.name}</td>
+        <td>${formatMoney(user.asset)}</td>
+      </tr>`;
+    });
+  }
+
+  /* ---------------- 매수 / 매도 (트랜잭션으로 안전하게 처리) ---------------- */
+  async function order(type, btn) {
+    const comp = document.getElementById('companySelect').value;
+    const qty = Number(document.getElementById('tradeQty').value);
+    const tradeMsg = document.getElementById('tradeMsg');
+    if (!comp || !qty || qty <= 0) return alert("종목과 수량을 확인하세요.");
+    if (currentStatus === 'CLOSED') return alert("현재 장이 마감되어 거래할 수 없습니다.");
+
+    setButtonLoading(btn, true);
+    tradeMsg.innerText = "주문 처리 중...";
+    try {
+      const priceSnap = await db.ref(`companies/${comp}/price`).get();
+      const price = priceSnap.val();
+      if (price == null) throw new Error('종목 정보를 확인할 수 없습니다.');
+
+      const result = await db.ref(`students/${myId}`).transaction(student => {
+        if (!student) return student;
+        student.portfolio = student.portfolio || {};
+        if (type === 'buy') {
+          const cost = price * qty;
+          if ((student.funds || 0) < cost) return; // 트랜잭션 중단 (예수금 부족)
+          student.funds -= cost;
+          const holding = student.portfolio[comp] || { qty: 0, totalCost: 0 };
+          holding.qty += qty;
+          holding.totalCost += cost;
+          student.portfolio[comp] = holding;
+        } else {
+          const holding = student.portfolio[comp];
+          if (!holding || holding.qty < qty) return; // 트랜잭션 중단 (보유 수량 부족)
+          const proceeds = price * qty;
+          student.funds = (student.funds || 0) + proceeds;
+          const remaining = holding.qty - qty;
+          if (remaining <= 0) {
+            delete student.portfolio[comp];
+          } else {
+            holding.totalCost = Math.round(holding.totalCost * (remaining / holding.qty));
+            holding.qty = remaining;
+            student.portfolio[comp] = holding;
+          }
+        }
+        return student;
+      });
+
+      if (!result.committed) {
+        tradeMsg.innerText = type === 'buy' ? "예수금이 부족합니다." : "보유 수량이 부족합니다.";
+      } else {
+        tradeMsg.innerText = type === 'buy' ? "매수가 체결되었습니다." : "매도가 체결되었습니다.";
+      }
+    } catch (e) {
+      tradeMsg.innerText = "오류가 발생했습니다. 다시 시도해주세요.";
+    } finally {
+      setButtonLoading(btn, false);
+    }
+  }
+</script>
+</body>
+</html>
